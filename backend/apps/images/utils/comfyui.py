@@ -6,7 +6,11 @@ import urllib.parse
 import random
 import logging
 
-from config import SRC_LOG_LEVELS
+from config import (
+    SRC_LOG_LEVELS,
+    COMFYUI_SAMPLER_NAME,
+    COMFYUI_SCHEDULER,
+)
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["COMFYUI"])
@@ -214,6 +218,9 @@ def comfyui_generate_image(
     comfyui_prompt["3"]["inputs"]["seed"] = (
         payload.seed if payload.seed else random.randint(0, 18446744073709551614)
     )
+
+    comfyui_prompt["3"]["inputs"]["sampler_name"] = COMFYUI_SAMPLER_NAME
+    comfyui_prompt["3"]["inputs"]["scheduler"] = COMFYUI_SCHEDULER
 
     try:
         ws = websocket.WebSocket()

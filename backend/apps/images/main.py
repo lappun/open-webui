@@ -37,6 +37,11 @@ from config import (
     COMFYUI_BASE_URL,
     OPENAI_API_BASE_URL,
     OPENAI_API_KEY,
+    IMAGE_GENERATION_ENGINE,
+    IMAGE_GENERATION_MODEL,
+    IMAGE_GENERATION_STEPS,
+    COMFYUI_SAMPLER_NAME,
+    COMFYUI_SCHEDULER,
 )
 
 
@@ -55,13 +60,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.state.ENGINE = ""
+app.state.ENGINE = IMAGE_GENERATION_ENGINE
 app.state.ENABLED = ENABLE_IMAGE_GENERATION
 
 app.state.OPENAI_API_BASE_URL = OPENAI_API_BASE_URL
 app.state.OPENAI_API_KEY = OPENAI_API_KEY
 
-app.state.MODEL = ""
+app.state.MODEL = IMAGE_GENERATION_MODEL
 
 
 app.state.AUTOMATIC1111_BASE_URL = AUTOMATIC1111_BASE_URL
@@ -69,7 +74,7 @@ app.state.COMFYUI_BASE_URL = COMFYUI_BASE_URL
 
 
 app.state.IMAGE_SIZE = "512x512"
-app.state.IMAGE_STEPS = 50
+app.state.IMAGE_STEPS = IMAGE_GENERATION_STEPS
 
 
 @app.get("/config")
