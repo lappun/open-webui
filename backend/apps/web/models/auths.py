@@ -93,7 +93,28 @@ class AuthsTable:
     def __init__(self, db):
         self.db = db
         self.db.create_tables([Auth])
+        self.create_users_from_json_file()
 
+    def create_users_from_json_file(self):
+        json_file_path = os.environ.get('USER_ACCOUNTS_JSON_PATH')
+
+        if json_file_path and os.path.isfile(json_file_path):
+            with open(json_file_path, 'r') as file:
+                user_accounts = json.load(file)
+
+            for user_account in user_accounts:
+                email = user_account.get('email')
+                password = user_account.get('password')
+                name = user_account.get('name')
+                profile_image_url = user_account.get('profile_image_url', '/user.png')
+                role = user_account.get('role', 'pending')
+
+                existing_user = self.get_user_by_email(email)
+                if existing_user is None:
+                    self.insert_new_auth(email, password, name, profile_image_url, role)
+        else:
+            log.error("User accounts JSON file not found or not specified")
+            
     def insert_new_auth(
         self,
         email: str,
