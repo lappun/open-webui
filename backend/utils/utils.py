@@ -14,6 +14,12 @@ import uuid
 import logging
 import config
 
+import requests
+from PIL import Image
+import base64
+from io import BytesIO
+import cairosvg
+
 logging.getLogger("passlib").setLevel(logging.ERROR)
 
 
@@ -123,3 +129,28 @@ def get_admin_user(user=Depends(get_current_user)):
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
         )
     return user
+
+
+def convert_svg_to_base64_and_resize(image_url):
+    # Download the SVG image from the URL
+    response = requests.get(image_url)
+    svg_content = response.content.decode("utf-8")
+
+    # Convert SVG to PNG using CairoSVG
+    png_data = cairosvg.svg2png(bytestring=svg_content)
+
+    # Open the PNG data as an image with PIL
+    image = Image.open(BytesIO(png_data))
+
+    # Resize the image to 100x100 pixels
+    resized_image = image.resize((100, 100))
+
+    # Convert the resized image to base64
+    buffered = BytesIO()
+    resized_image.save(buffered, format="PNG")
+    base64_image = base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+    # Construct the base64 URL
+    base64_url = f"data:image/png;base64,{base64_image}"
+    
+    return base64_url

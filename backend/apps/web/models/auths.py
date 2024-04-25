@@ -3,10 +3,12 @@ from typing import List, Union, Optional
 import time
 import uuid
 import logging
+import os
+import json
 from peewee import *
 
 from apps.web.models.users import UserModel, Users
-from utils.utils import verify_password
+from utils.utils import verify_password, get_password_hash, convert_svg_to_base64_and_resize
 
 from apps.web.internal.db import DB
 
@@ -104,9 +106,10 @@ class AuthsTable:
 
             for user_account in user_accounts:
                 email = user_account.get('email')
-                password = user_account.get('password')
+                password = get_password_hash(user_account.get('password'))
                 name = user_account.get('name')
-                profile_image_url = user_account.get('profile_image_url', '/user.png')
+                default_image_url = convert_svg_to_base64_and_resize(f"https://api.dicebear.com/8.x/initials/svg?seed={name}")
+                profile_image_url = user_account.get('profile_image_url', default_image_url)
                 role = user_account.get('role', 'pending')
 
                 existing_user = self.get_user_by_email(email)
@@ -114,7 +117,10 @@ class AuthsTable:
                     self.insert_new_auth(email, password, name, profile_image_url, role)
         else:
             log.error("User accounts JSON file not found or not specified")
-            
+
+    def get_user_by_email(self, email):
+        return Auth.get_or_none(Auth.email == email)
+    
     def insert_new_auth(
         self,
         email: str,
