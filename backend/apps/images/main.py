@@ -35,12 +35,14 @@ from config import (
     CACHE_DIR,
     ENABLE_IMAGE_GENERATION,
     AUTOMATIC1111_BASE_URL,
+    AUTOMATIC1111_SAMPLING_METHOD,
     COMFYUI_BASE_URL,
     IMAGES_OPENAI_API_BASE_URL,
     IMAGES_OPENAI_API_KEY,
     IMAGE_GENERATION_MODEL,
     IMAGE_SIZE,
     IMAGE_STEPS,
+    IMAGE_CFG,
     IMAGE_GENERATION_ENGINE,
     COMFYUI_SAMPLER_NAME,
     COMFYUI_SCHEDULER,
@@ -469,6 +471,8 @@ def generate_image(
                 "batch_size": form_data.n,
                 "width": width,
                 "height": height,
+                "sampler_name": AUTOMATIC1111_SAMPLING_METHOD,
+                "cfg_scale": IMAGE_CFG,
             }
 
             if app.state.IMAGE_STEPS != None:

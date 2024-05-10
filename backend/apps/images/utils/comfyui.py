@@ -10,7 +10,7 @@ from config import (
     SRC_LOG_LEVELS,
     COMFYUI_SAMPLER_NAME,
     COMFYUI_SCHEDULER,
-    COMFYUI_CFG,
+    IMAGE_CFG,
 )
 
 log = logging.getLogger(__name__)
@@ -220,7 +220,7 @@ def comfyui_generate_image(
         payload.seed if payload.seed else random.randint(0, 18446744073709551614)
     )
 
-    comfyui_prompt["3"]["inputs"]["cfg"] = COMFYUI_CFG
+    comfyui_prompt["3"]["inputs"]["cfg"] = IMAGE_CFG
     comfyui_prompt["3"]["inputs"]["sampler_name"] = COMFYUI_SAMPLER_NAME
     comfyui_prompt["3"]["inputs"]["scheduler"] = COMFYUI_SCHEDULER
 
