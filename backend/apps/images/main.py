@@ -45,6 +45,7 @@ from config import (
     IMAGE_STEPS,
     IMAGE_CFG,
     IMAGE_GENERATION_ENGINE,
+    IMAGE_GENERATION_NEGATIVE_PROMPT,
     COMFYUI_SAMPLER_NAME,
     COMFYUI_SCHEDULER,
 )
@@ -388,8 +389,10 @@ def generate_image(
 ):
 
     width, height = tuple(map(int, app.state.IMAGE_SIZE.split("x")))
-
-    r = None
+    
+    if form_data.negative_prompt == None and IMAGE_GENERATION_NEGATIVE_PROMPT != "":
+        form_data.negative_prompt = IMAGE_GENERATION_NEGATIVE_PROMPT
+        
     try:
         if app.state.ENGINE == "openai":
 
