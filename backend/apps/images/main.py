@@ -37,6 +37,7 @@ from config import (
     AUTOMATIC1111_BASE_URL,
     AUTOMATIC1111_SAMPLING_METHOD,
     AUTOMATIC1111_RESTORE_FACE,
+    AUTOMATIC1111_STYLES,
     COMFYUI_BASE_URL,
     IMAGES_OPENAI_API_BASE_URL,
     IMAGES_OPENAI_API_KEY,
@@ -478,6 +479,7 @@ def generate_image(
                 "sampler_name": AUTOMATIC1111_SAMPLING_METHOD,
                 "sampler_index": AUTOMATIC1111_SAMPLING_METHOD,
                 "restore_faces": AUTOMATIC1111_RESTORE_FACE,
+                "styles": AUTOMATIC1111_STYLES,
                 "cfg_scale": IMAGE_CFG,
             }
 
