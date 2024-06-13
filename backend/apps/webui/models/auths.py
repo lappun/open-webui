@@ -7,7 +7,7 @@ import os
 import json
 from peewee import *
 
-from apps.web.models.users import UserModel, Users
+from apps.webui.models.users import UserModel, Users
 from utils.utils import verify_password, get_password_hash, convert_svg_to_base64_and_resize
 
 from apps.webui.internal.db import DB
