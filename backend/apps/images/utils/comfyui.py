@@ -8,8 +8,6 @@ import logging
 
 from config import (
     SRC_LOG_LEVELS,
-    COMFYUI_SAMPLER_NAME,
-    COMFYUI_SCHEDULER,
     IMAGE_CFG,
 )
 
@@ -237,8 +235,6 @@ def comfyui_generate_image(
     )
 
     comfyui_prompt["3"]["inputs"]["cfg"] = IMAGE_CFG
-    comfyui_prompt["3"]["inputs"]["sampler_name"] = COMFYUI_SAMPLER_NAME
-    comfyui_prompt["3"]["inputs"]["scheduler"] = COMFYUI_SCHEDULER
 
     try:
         ws = websocket.WebSocket()

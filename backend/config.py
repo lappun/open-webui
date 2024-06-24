@@ -1067,9 +1067,6 @@ AUTOMATIC1111_RESTORE_FACE = (
 AUTOMATIC1111_STYLES = os.getenv("AUTOMATIC1111_STYLES", "").split(",")
 
 
-COMFYUI_SAMPLER_NAME = os.getenv("COMFYUI_SAMPLER_NAME", "euler")
-COMFYUI_SCHEDULER = os.getenv("COMFYUI_SCHEDULER", "normal")
-
 ####################################
 # Audio
 ####################################
