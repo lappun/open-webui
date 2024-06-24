@@ -196,7 +196,11 @@ async def get_function_call_response(messages, tool_id, template, task_model_id,
         "stream": False,
     }
 
-    payload = filter_pipeline(payload, user)
+    try:
+        payload = filter_pipeline(payload, user)
+    except Exception as e:
+        raise e
+
     model = app.state.MODELS[task_model_id]
 
     response = None
@@ -326,16 +330,19 @@ class ChatCompletionMiddleware(BaseHTTPMiddleware):
                 print(data["tool_ids"])
                 for tool_id in data["tool_ids"]:
                     print(tool_id)
-                    response = await get_function_call_response(
-                        messages=data["messages"],
-                        tool_id=tool_id,
-                        template=app.state.config.TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE,
-                        task_model_id=task_model_id,
-                        user=user,
-                    )
+                    try:
+                        response = await get_function_call_response(
+                            messages=data["messages"],
+                            tool_id=tool_id,
+                            template=app.state.config.TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE,
+                            task_model_id=task_model_id,
+                            user=user,
+                        )
 
-                    if response:
-                        context += ("\n" if context != "" else "") + response
+                        if response:
+                            context += ("\n" if context != "" else "") + response
+                    except Exception as e:
+                        print(f"Error: {e}")
                 del data["tool_ids"]
 
                 print(f"tool_context: {context}")
@@ -472,13 +479,10 @@ def filter_pipeline(payload, user):
             if r is not None:
                 try:
                     res = r.json()
-                    if "detail" in res:
-                        return JSONResponse(
-                            status_code=r.status_code,
-                            content=res,
-                        )
                 except:
                     pass
+                if "detail" in res:
+                    raise Exception(r.status_code, res["detail"])
 
             else:
                 pass
@@ -489,6 +493,10 @@ def filter_pipeline(payload, user):
 
         if "title" in payload:
             del payload["title"]
+
+        if "task" in payload:
+            del payload["task"]
+
     return payload
 
 
@@ -510,7 +518,14 @@ class PipelineMiddleware(BaseHTTPMiddleware):
             user = get_current_user(
                 get_http_authorization_cred(request.headers.get("Authorization"))
             )
-            data = filter_pipeline(data, user)
+
+            try:
+                data = filter_pipeline(data, user)
+            except Exception as e:
+                return JSONResponse(
+                    status_code=e.args[0],
+                    content={"detail": e.args[1]},
+                )
 
             modified_body_bytes = json.dumps(data).encode("utf-8")
             # Replace the request body with the modified one
@@ -749,7 +764,12 @@ async def generate_title(form_data: dict, user=Depends(get_verified_user)):
     template = app.state.config.TITLE_GENERATION_PROMPT_TEMPLATE
 
     content = title_generation_template(
-        template, form_data["prompt"], user.model_dump()
+        template,
+        form_data["prompt"],
+        {
+            "name": user.name,
+            "location": user.info.get("location") if user.info else None,
+        },
     )
 
     payload = {
@@ -761,8 +781,15 @@ async def generate_title(form_data: dict, user=Depends(get_verified_user)):
         "title": True,
     }
 
-    print(payload)
-    payload = filter_pipeline(payload, user)
+    log.debug(payload)
+
+    try:
+        payload = filter_pipeline(payload, user)
+    except Exception as e:
+        return JSONResponse(
+            status_code=e.args[0],
+            content={"detail": e.args[1]},
+        )
 
     if model["owned_by"] == "ollama":
         return await generate_ollama_chat_completion(
@@ -808,7 +835,7 @@ async def generate_search_query(form_data: dict, user=Depends(get_verified_user)
     template = app.state.config.SEARCH_QUERY_GENERATION_PROMPT_TEMPLATE
 
     content = search_query_generation_template(
-        template, form_data["prompt"], user.model_dump()
+        template, form_data["prompt"], {"name": user.name}
     )
 
     payload = {
@@ -816,10 +843,87 @@ async def generate_search_query(form_data: dict, user=Depends(get_verified_user)
         "messages": [{"role": "user", "content": content}],
         "stream": False,
         "max_tokens": 30,
+        "task": True,
     }
 
     print(payload)
-    payload = filter_pipeline(payload, user)
+
+    try:
+        payload = filter_pipeline(payload, user)
+    except Exception as e:
+        return JSONResponse(
+            status_code=e.args[0],
+            content={"detail": e.args[1]},
+        )
+
+    if model["owned_by"] == "ollama":
+        return await generate_ollama_chat_completion(
+            OpenAIChatCompletionForm(**payload), user=user
+        )
+    else:
+        return await generate_openai_chat_completion(payload, user=user)
+
+
+@app.post("/api/task/emoji/completions")
+async def generate_emoji(form_data: dict, user=Depends(get_verified_user)):
+    print("generate_emoji")
+
+    model_id = form_data["model"]
+    if model_id not in app.state.MODELS:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Model not found",
+        )
+
+    # Check if the user has a custom task model
+    # If the user has a custom task model, use that model
+    if app.state.MODELS[model_id]["owned_by"] == "ollama":
+        if app.state.config.TASK_MODEL:
+            task_model_id = app.state.config.TASK_MODEL
+            if task_model_id in app.state.MODELS:
+                model_id = task_model_id
+    else:
+        if app.state.config.TASK_MODEL_EXTERNAL:
+            task_model_id = app.state.config.TASK_MODEL_EXTERNAL
+            if task_model_id in app.state.MODELS:
+                model_id = task_model_id
+
+    print(model_id)
+    model = app.state.MODELS[model_id]
+
+    template = '''
+Your task is to reflect the speaker's likely facial expression through a fitting emoji. Interpret emotions from the message and reflect their facial expression using fitting, diverse emojis (e.g., 😊, 😢, 😡, 😱).
+
+Message: """{{prompt}}"""
+'''
+
+    content = title_generation_template(
+        template,
+        form_data["prompt"],
+        {
+            "name": user.name,
+            "location": user.info.get("location") if user.info else None,
+        },
+    )
+
+    payload = {
+        "model": model_id,
+        "messages": [{"role": "user", "content": content}],
+        "stream": False,
+        "max_tokens": 4,
+        "chat_id": form_data.get("chat_id", None),
+        "task": True,
+    }
+
+    log.debug(payload)
+
+    try:
+        payload = filter_pipeline(payload, user)
+    except Exception as e:
+        return JSONResponse(
+            status_code=e.args[0],
+            content={"detail": e.args[1]},
+        )
 
     if model["owned_by"] == "ollama":
         return await generate_ollama_chat_completion(
@@ -856,9 +960,16 @@ async def get_tools_function_calling(form_data: dict, user=Depends(get_verified_
     print(model_id)
     template = app.state.config.TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE
 
-    return await get_function_call_response(
-        form_data["messages"], form_data["tool_id"], template, model_id, user
-    )
+    try:
+        context = await get_function_call_response(
+            form_data["messages"], form_data["tool_id"], template, model_id, user
+        )
+        return context
+    except Exception as e:
+        return JSONResponse(
+            status_code=e.args[0],
+            content={"detail": e.args[1]},
+        )
 
 
 @app.post("/api/chat/completions")
