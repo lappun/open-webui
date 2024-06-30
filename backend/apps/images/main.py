@@ -1,5 +1,6 @@
 import re
 import requests
+import base64
 from fastapi import (
     FastAPI,
     Request,
@@ -15,7 +16,7 @@ from faster_whisper import WhisperModel
 
 from constants import ERROR_MESSAGES
 from utils.utils import (
-    get_current_user,
+    get_verified_user,
     get_admin_user,
 )
 
@@ -36,6 +37,7 @@ from config import (
     IMAGE_GENERATION_ENGINE,
     ENABLE_IMAGE_GENERATION,
     AUTOMATIC1111_BASE_URL,
+    AUTOMATIC1111_API_AUTH,
     COMFYUI_BASE_URL,
     COMFYUI_CFG_SCALE,
     COMFYUI_SAMPLER,
@@ -53,7 +55,6 @@ from config import (
     AUTOMATIC1111_STYLES,
     AppConfig,
 )
-
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["IMAGES"])
@@ -80,10 +81,9 @@ app.state.config.OPENAI_API_KEY = IMAGES_OPENAI_API_KEY
 
 app.state.config.MODEL = IMAGE_GENERATION_MODEL
 
-
 app.state.config.AUTOMATIC1111_BASE_URL = AUTOMATIC1111_BASE_URL
+app.state.config.AUTOMATIC1111_API_AUTH = AUTOMATIC1111_API_AUTH
 app.state.config.COMFYUI_BASE_URL = COMFYUI_BASE_URL
-
 
 app.state.config.IMAGE_SIZE = IMAGE_SIZE
 app.state.config.IMAGE_STEPS = IMAGE_STEPS
@@ -91,6 +91,16 @@ app.state.config.COMFYUI_CFG_SCALE = COMFYUI_CFG_SCALE
 app.state.config.COMFYUI_SAMPLER = COMFYUI_SAMPLER
 app.state.config.COMFYUI_SCHEDULER = COMFYUI_SCHEDULER
 app.state.config.COMFYUI_SD3 = COMFYUI_SD3
+
+
+def get_automatic1111_api_auth():
+    if app.state.config.AUTOMATIC1111_API_AUTH == None:
+        return ""
+    else:
+        auth1111_byte_string = app.state.config.AUTOMATIC1111_API_AUTH.encode("utf-8")
+        auth1111_base64_encoded_bytes = base64.b64encode(auth1111_byte_string)
+        auth1111_base64_encoded_string = auth1111_base64_encoded_bytes.decode("utf-8")
+        return f"Basic {auth1111_base64_encoded_string}"
 
 
 @app.get("/config")
@@ -118,6 +128,7 @@ async def update_config(form_data: ConfigUpdateForm, user=Depends(get_admin_user
 
 class EngineUrlUpdateForm(BaseModel):
     AUTOMATIC1111_BASE_URL: Optional[str] = None
+    AUTOMATIC1111_API_AUTH: Optional[str] = None
     COMFYUI_BASE_URL: Optional[str] = None
 
 
@@ -125,6 +136,7 @@ class EngineUrlUpdateForm(BaseModel):
 async def get_engine_url(user=Depends(get_admin_user)):
     return {
         "AUTOMATIC1111_BASE_URL": app.state.config.AUTOMATIC1111_BASE_URL,
+        "AUTOMATIC1111_API_AUTH": app.state.config.AUTOMATIC1111_API_AUTH,
         "COMFYUI_BASE_URL": app.state.config.COMFYUI_BASE_URL,
     }
 
@@ -133,7 +145,6 @@ async def get_engine_url(user=Depends(get_admin_user)):
 async def update_engine_url(
     form_data: EngineUrlUpdateForm, user=Depends(get_admin_user)
 ):
-
     if form_data.AUTOMATIC1111_BASE_URL == None:
         app.state.config.AUTOMATIC1111_BASE_URL = AUTOMATIC1111_BASE_URL
     else:
@@ -155,8 +166,14 @@ async def update_engine_url(
         except Exception as e:
             raise HTTPException(status_code=400, detail=ERROR_MESSAGES.DEFAULT(e))
 
+    if form_data.AUTOMATIC1111_API_AUTH == None:
+        app.state.config.AUTOMATIC1111_API_AUTH = AUTOMATIC1111_API_AUTH
+    else:
+        app.state.config.AUTOMATIC1111_API_AUTH = form_data.AUTOMATIC1111_API_AUTH
+
     return {
         "AUTOMATIC1111_BASE_URL": app.state.config.AUTOMATIC1111_BASE_URL,
+        "AUTOMATIC1111_API_AUTH": app.state.config.AUTOMATIC1111_API_AUTH,
         "COMFYUI_BASE_URL": app.state.config.COMFYUI_BASE_URL,
         "status": True,
     }
@@ -246,7 +263,7 @@ async def update_image_size(
 
 
 @app.get("/models")
-def get_models(user=Depends(get_current_user)):
+def get_models(user=Depends(get_verified_user)):
     try:
         if app.state.config.ENGINE == "openai":
             return [
@@ -267,7 +284,8 @@ def get_models(user=Depends(get_current_user)):
 
         else:
             r = requests.get(
-                url=f"{app.state.config.AUTOMATIC1111_BASE_URL}/sdapi/v1/sd-models"
+                url=f"{app.state.config.AUTOMATIC1111_BASE_URL}/sdapi/v1/sd-models",
+                headers={"authorization": get_automatic1111_api_auth()},
             )
             models = r.json()
             return list(
@@ -294,7 +312,8 @@ async def get_default_model(user=Depends(get_admin_user)):
             return {"model": (app.state.config.MODEL if app.state.config.MODEL else "")}
         else:
             r = requests.get(
-                url=f"{app.state.config.AUTOMATIC1111_BASE_URL}/sdapi/v1/options"
+                url=f"{app.state.config.AUTOMATIC1111_BASE_URL}/sdapi/v1/options",
+                headers={"authorization": get_automatic1111_api_auth()},
             )
             options = r.json()
             return {"model": options["sd_model_checkpoint"]}
@@ -312,8 +331,10 @@ def set_model_handler(model: str):
         app.state.config.MODEL = model
         return app.state.config.MODEL
     else:
+        api_auth = get_automatic1111_api_auth()
         r = requests.get(
-            url=f"{app.state.config.AUTOMATIC1111_BASE_URL}/sdapi/v1/options"
+            url=f"{app.state.config.AUTOMATIC1111_BASE_URL}/sdapi/v1/options",
+            headers={"authorization": api_auth},
         )
         options = r.json()
 
@@ -322,6 +343,7 @@ def set_model_handler(model: str):
             r = requests.post(
                 url=f"{app.state.config.AUTOMATIC1111_BASE_URL}/sdapi/v1/options",
                 json=options,
+                headers={"authorization": api_auth},
             )
 
         return options
@@ -330,7 +352,7 @@ def set_model_handler(model: str):
 @app.post("/models/default/update")
 def update_default_model(
     form_data: UpdateModelForm,
-    user=Depends(get_current_user),
+    user=Depends(get_verified_user),
 ):
     return set_model_handler(form_data.model)
 
@@ -407,9 +429,8 @@ def save_url_image(url):
 @app.post("/generations")
 def generate_image(
     form_data: GenerateImageForm,
-    user=Depends(get_current_user),
+    user=Depends(get_verified_user),
 ):
-
     width, height = tuple(map(int, app.state.config.IMAGE_SIZE.split("x")))
     
     if form_data.negative_prompt == None and IMAGE_GENERATION_NEGATIVE_PROMPT != "":
@@ -531,6 +552,7 @@ def generate_image(
             r = requests.post(
                 url=f"{app.state.config.AUTOMATIC1111_BASE_URL}/sdapi/v1/txt2img",
                 json=data,
+                headers={"authorization": get_automatic1111_api_auth()},
             )
 
             res = r.json()
