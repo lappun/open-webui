@@ -8,7 +8,6 @@ import logging
 
 from config import (
     SRC_LOG_LEVELS,
-    IMAGE_CFG,
 )
 
 log = logging.getLogger(__name__)
@@ -233,8 +232,6 @@ def comfyui_generate_image(
     comfyui_prompt["3"]["inputs"]["seed"] = (
         payload.seed if payload.seed else random.randint(0, 18446744073709551614)
     )
-
-    comfyui_prompt["3"]["inputs"]["cfg"] = IMAGE_CFG
 
     try:
         ws = websocket.WebSocket()
