@@ -95,8 +95,6 @@ class AddUserForm(SignupForm):
 
 
 class AuthsTable:
-    def __init__(self):
-        self.create_users_from_json_file()
 
     def create_users_from_json_file(self):
         json_file_path = os.environ.get('USER_ACCOUNTS_JSON_PATH')
