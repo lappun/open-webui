@@ -96,7 +96,6 @@ class AddUserForm(SignupForm):
 
 class AuthsTable:
     def __init__(self):
-        self.db.create_tables([Auth])
         self.create_users_from_json_file()
 
     def create_users_from_json_file(self):
