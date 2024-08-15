@@ -1,5 +1,5 @@
+import asyncio
 import websocket  # NOTE: websocket-client (https://github.com/websocket-client/websocket-client)
-import uuid
 import json
 import urllib.request
 import urllib.parse
@@ -172,7 +172,7 @@ FLUX_DEFAULT_PROMPT = """
     },
     "10": {
         "inputs": {
-            "vae_name": "ae.sft"
+            "vae_name": "ae.safetensors"
         },
         "class_type": "VAELoader"
     },
@@ -186,7 +186,7 @@ FLUX_DEFAULT_PROMPT = """
     },
     "12": {
         "inputs": {
-            "unet_name": "flux1-dev.sft",
+            "unet_name": "flux1-dev.safetensors",
             "weight_dtype": "default"
         },
         "class_type": "UNETLoader"
@@ -330,7 +330,7 @@ class ImageGenerationPayload(BaseModel):
     flux_fp8_clip: Optional[bool] = None
 
 
-def comfyui_generate_image(
+async def comfyui_generate_image(
     model: str, payload: ImageGenerationPayload, client_id, base_url
 ):
     ws_url = base_url.replace("http://", "ws://").replace("https://", "wss://")
@@ -399,7 +399,9 @@ def comfyui_generate_image(
         return None
 
     try:
-        images = get_images(ws, comfyui_prompt, client_id, base_url)
+        images = await asyncio.to_thread(
+            get_images, ws, comfyui_prompt, client_id, base_url
+        )
     except Exception as e:
         log.exception(f"Error while receiving images: {e}")
         images = None
