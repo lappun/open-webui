@@ -23,7 +23,7 @@ jobs:
           remove-codeql: 'true'
 
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Build and run Compose Stack
         run: |
@@ -82,7 +82,7 @@ jobs:
   #   name: Run Backend Tests
   #   runs-on: ubuntu-latest
   #   steps:
-  #     - uses: actions/checkout@v4
+  #     - uses: actions/checkout@v5
 
   #     - name: Set up Python
   #       uses: actions/setup-python@v4
@@ -129,7 +129,7 @@ jobs:
     #          - 3306:3306
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
         uses: actions/setup-python@v5
