@@ -57,7 +57,7 @@ jobs:
           wait-on: 'http://localhost:3000'
           config: baseUrl=http://localhost:3000
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         name: Upload Cypress videos
         with:
@@ -70,7 +70,7 @@ jobs:
         run: |
           docker compose logs > compose-logs.txt
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         name: Upload Compose logs
         with:
